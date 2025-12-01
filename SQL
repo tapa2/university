@@ -1,0 +1,1266 @@
+-- Table: public.classrooms
+
+-- DROP TABLE IF EXISTS public.classrooms;
+
+CREATE TABLE IF NOT EXISTS public.classrooms
+(
+    id bigint NOT NULL DEFAULT nextval('classrooms_id_seq'::regclass),
+    building text COLLATE pg_catalog."default" NOT NULL,
+    room_number text COLLATE pg_catalog."default" NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    created_by bigint,
+    updated_at timestamp with time zone,
+    updated_by bigint,
+    is_deleted boolean NOT NULL DEFAULT false,
+    deleted_at timestamp with time zone,
+    deleted_by bigint,
+    CONSTRAINT classrooms_pkey PRIMARY KEY (id),
+    CONSTRAINT classrooms_created_by_fkey FOREIGN KEY (created_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT classrooms_deleted_by_fkey FOREIGN KEY (deleted_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT classrooms_updated_by_fkey FOREIGN KEY (updated_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.classrooms
+    OWNER to postgres;
+
+-- Trigger: trg_classrooms_audit
+
+-- DROP TRIGGER IF EXISTS trg_classrooms_audit ON public.classrooms;
+
+CREATE OR REPLACE TRIGGER trg_classrooms_audit
+    BEFORE UPDATE 
+    ON public.classrooms
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_audit_fields();
+
+-- Trigger: trg_classrooms_soft_delete
+
+-- DROP TRIGGER IF EXISTS trg_classrooms_soft_delete ON public.classrooms;
+
+CREATE OR REPLACE TRIGGER trg_classrooms_soft_delete
+    BEFORE DELETE
+    ON public.classrooms
+    FOR EACH ROW
+    EXECUTE FUNCTION public.soft_delete_row();
+
+-- Table: public.course_instances
+
+-- DROP TABLE IF EXISTS public.course_instances;
+
+CREATE TABLE IF NOT EXISTS public.course_instances
+(
+    id bigint NOT NULL DEFAULT nextval('course_instances_id_seq'::regclass),
+    course_id bigint NOT NULL,
+    teacher_id bigint NOT NULL,
+    academic_year text COLLATE pg_catalog."default" NOT NULL,
+    semester integer NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    created_by bigint,
+    updated_at timestamp with time zone,
+    updated_by bigint,
+    is_deleted boolean NOT NULL DEFAULT false,
+    deleted_at timestamp with time zone,
+    deleted_by bigint,
+    CONSTRAINT course_instances_pkey PRIMARY KEY (id),
+    CONSTRAINT course_instances_course_id_fkey FOREIGN KEY (course_id)
+        REFERENCES public.courses (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT course_instances_created_by_fkey FOREIGN KEY (created_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT course_instances_deleted_by_fkey FOREIGN KEY (deleted_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT course_instances_teacher_id_fkey FOREIGN KEY (teacher_id)
+        REFERENCES public.teachers (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT course_instances_updated_by_fkey FOREIGN KEY (updated_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.course_instances
+    OWNER to postgres;
+
+-- Trigger: trg_course_instances_audit
+
+-- DROP TRIGGER IF EXISTS trg_course_instances_audit ON public.course_instances;
+
+CREATE OR REPLACE TRIGGER trg_course_instances_audit
+    BEFORE UPDATE 
+    ON public.course_instances
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_audit_fields();
+
+-- Trigger: trg_course_instances_soft_delete
+
+-- DROP TRIGGER IF EXISTS trg_course_instances_soft_delete ON public.course_instances;
+
+CREATE OR REPLACE TRIGGER trg_course_instances_soft_delete
+    BEFORE DELETE
+    ON public.course_instances
+    FOR EACH ROW
+    EXECUTE FUNCTION public.soft_delete_row();
+
+-- Table: public.courses
+
+-- DROP TABLE IF EXISTS public.courses;
+
+CREATE TABLE IF NOT EXISTS public.courses
+(
+    id bigint NOT NULL DEFAULT nextval('courses_id_seq'::regclass),
+    department_id bigint NOT NULL,
+    code text COLLATE pg_catalog."default" NOT NULL,
+    name text COLLATE pg_catalog."default" NOT NULL,
+    description text COLLATE pg_catalog."default",
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    created_by bigint,
+    updated_at timestamp with time zone,
+    updated_by bigint,
+    is_deleted boolean NOT NULL DEFAULT false,
+    deleted_at timestamp with time zone,
+    deleted_by bigint,
+    search_vector tsvector GENERATED ALWAYS AS (((setweight(to_tsvector('simple'::regconfig, COALESCE(code, ''::text)), 'A'::"char") || setweight(to_tsvector('simple'::regconfig, COALESCE(name, ''::text)), 'A'::"char")) || setweight(to_tsvector('simple'::regconfig, COALESCE(description, ''::text)), 'B'::"char"))) STORED,
+    CONSTRAINT courses_pkey PRIMARY KEY (id),
+    CONSTRAINT courses_code_key UNIQUE (code),
+    CONSTRAINT courses_created_by_fkey FOREIGN KEY (created_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT courses_deleted_by_fkey FOREIGN KEY (deleted_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT courses_department_id_fkey FOREIGN KEY (department_id)
+        REFERENCES public.departments (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT courses_updated_by_fkey FOREIGN KEY (updated_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.courses
+    OWNER to postgres;
+-- Index: idx_courses_search_vector
+
+-- DROP INDEX IF EXISTS public.idx_courses_search_vector;
+
+CREATE INDEX IF NOT EXISTS idx_courses_search_vector
+    ON public.courses USING gin
+    (search_vector)
+    WITH (fastupdate=True, gin_pending_list_limit=4194304)
+    TABLESPACE pg_default;
+
+-- Trigger: trg_courses_audit
+
+-- DROP TRIGGER IF EXISTS trg_courses_audit ON public.courses;
+
+CREATE OR REPLACE TRIGGER trg_courses_audit
+    BEFORE UPDATE 
+    ON public.courses
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_audit_fields();
+
+-- Trigger: trg_courses_soft_delete
+
+-- DROP TRIGGER IF EXISTS trg_courses_soft_delete ON public.courses;
+
+CREATE OR REPLACE TRIGGER trg_courses_soft_delete
+    BEFORE DELETE
+    ON public.courses
+    FOR EACH ROW
+    EXECUTE FUNCTION public.soft_delete_row();
+
+-- Table: public.departments
+
+-- DROP TABLE IF EXISTS public.departments;
+
+CREATE TABLE IF NOT EXISTS public.departments
+(
+    id bigint NOT NULL DEFAULT nextval('departments_id_seq'::regclass),
+    faculty_id bigint NOT NULL,
+    name text COLLATE pg_catalog."default" NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    created_by bigint,
+    updated_at timestamp with time zone,
+    updated_by bigint,
+    is_deleted boolean NOT NULL DEFAULT false,
+    deleted_at timestamp with time zone,
+    deleted_by bigint,
+    CONSTRAINT departments_pkey PRIMARY KEY (id),
+    CONSTRAINT departments_created_by_fkey FOREIGN KEY (created_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT departments_deleted_by_fkey FOREIGN KEY (deleted_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT departments_faculty_id_fkey FOREIGN KEY (faculty_id)
+        REFERENCES public.faculties (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT departments_updated_by_fkey FOREIGN KEY (updated_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.departments
+    OWNER to postgres;
+
+-- Trigger: trg_departments_audit
+
+-- DROP TRIGGER IF EXISTS trg_departments_audit ON public.departments;
+
+CREATE OR REPLACE TRIGGER trg_departments_audit
+    BEFORE UPDATE 
+    ON public.departments
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_audit_fields();
+
+-- Trigger: trg_departments_soft_delete
+
+-- DROP TRIGGER IF EXISTS trg_departments_soft_delete ON public.departments;
+
+CREATE OR REPLACE TRIGGER trg_departments_soft_delete
+    BEFORE DELETE
+    ON public.departments
+    FOR EACH ROW
+    EXECUTE FUNCTION public.soft_delete_row();
+
+-- Table: public.enrollments
+
+-- DROP TABLE IF EXISTS public.enrollments;
+
+CREATE TABLE IF NOT EXISTS public.enrollments
+(
+    id bigint NOT NULL DEFAULT nextval('enrollments_id_seq'::regclass),
+    student_id bigint NOT NULL,
+    course_instance_id bigint NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    created_by bigint,
+    updated_at timestamp with time zone,
+    updated_by bigint,
+    is_deleted boolean NOT NULL DEFAULT false,
+    deleted_at timestamp with time zone,
+    deleted_by bigint,
+    CONSTRAINT enrollments_pkey PRIMARY KEY (id),
+    CONSTRAINT enrollments_student_id_course_instance_id_key UNIQUE (student_id, course_instance_id),
+    CONSTRAINT enrollments_course_instance_id_fkey FOREIGN KEY (course_instance_id)
+        REFERENCES public.course_instances (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT enrollments_created_by_fkey FOREIGN KEY (created_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT enrollments_deleted_by_fkey FOREIGN KEY (deleted_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT enrollments_student_id_fkey FOREIGN KEY (student_id)
+        REFERENCES public.students (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT enrollments_updated_by_fkey FOREIGN KEY (updated_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.enrollments
+    OWNER to postgres;
+
+-- Trigger: trg_enrollments_audit
+
+-- DROP TRIGGER IF EXISTS trg_enrollments_audit ON public.enrollments;
+
+CREATE OR REPLACE TRIGGER trg_enrollments_audit
+    BEFORE UPDATE 
+    ON public.enrollments
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_audit_fields();
+
+-- Trigger: trg_enrollments_no_duplicate
+
+-- DROP TRIGGER IF EXISTS trg_enrollments_no_duplicate ON public.enrollments;
+
+CREATE OR REPLACE TRIGGER trg_enrollments_no_duplicate
+    BEFORE INSERT
+    ON public.enrollments
+    FOR EACH ROW
+    EXECUTE FUNCTION public.prevent_duplicate_enrollment();
+
+-- Trigger: trg_enrollments_soft_delete
+
+-- DROP TRIGGER IF EXISTS trg_enrollments_soft_delete ON public.enrollments;
+
+CREATE OR REPLACE TRIGGER trg_enrollments_soft_delete
+    BEFORE DELETE
+    ON public.enrollments
+    FOR EACH ROW
+    EXECUTE FUNCTION public.soft_delete_row();
+
+-- Table: public.enrollments
+
+-- DROP TABLE IF EXISTS public.enrollments;
+
+CREATE TABLE IF NOT EXISTS public.enrollments
+(
+    id bigint NOT NULL DEFAULT nextval('enrollments_id_seq'::regclass),
+    student_id bigint NOT NULL,
+    course_instance_id bigint NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    created_by bigint,
+    updated_at timestamp with time zone,
+    updated_by bigint,
+    is_deleted boolean NOT NULL DEFAULT false,
+    deleted_at timestamp with time zone,
+    deleted_by bigint,
+    CONSTRAINT enrollments_pkey PRIMARY KEY (id),
+    CONSTRAINT enrollments_student_id_course_instance_id_key UNIQUE (student_id, course_instance_id),
+    CONSTRAINT enrollments_course_instance_id_fkey FOREIGN KEY (course_instance_id)
+        REFERENCES public.course_instances (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT enrollments_created_by_fkey FOREIGN KEY (created_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT enrollments_deleted_by_fkey FOREIGN KEY (deleted_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT enrollments_student_id_fkey FOREIGN KEY (student_id)
+        REFERENCES public.students (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT enrollments_updated_by_fkey FOREIGN KEY (updated_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.enrollments
+    OWNER to postgres;
+
+-- Trigger: trg_enrollments_audit
+
+-- DROP TRIGGER IF EXISTS trg_enrollments_audit ON public.enrollments;
+
+CREATE OR REPLACE TRIGGER trg_enrollments_audit
+    BEFORE UPDATE 
+    ON public.enrollments
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_audit_fields();
+
+-- Trigger: trg_enrollments_no_duplicate
+
+-- DROP TRIGGER IF EXISTS trg_enrollments_no_duplicate ON public.enrollments;
+
+CREATE OR REPLACE TRIGGER trg_enrollments_no_duplicate
+    BEFORE INSERT
+    ON public.enrollments
+    FOR EACH ROW
+    EXECUTE FUNCTION public.prevent_duplicate_enrollment();
+
+-- Trigger: trg_enrollments_soft_delete
+
+-- DROP TRIGGER IF EXISTS trg_enrollments_soft_delete ON public.enrollments;
+
+CREATE OR REPLACE TRIGGER trg_enrollments_soft_delete
+    BEFORE DELETE
+    ON public.enrollments
+    FOR EACH ROW
+    EXECUTE FUNCTION public.soft_delete_row();
+
+-- Table: public.grades
+
+-- DROP TABLE IF EXISTS public.grades;
+
+CREATE TABLE IF NOT EXISTS public.grades
+(
+    id bigint NOT NULL DEFAULT nextval('grades_id_seq'::regclass),
+    enrollment_id bigint NOT NULL,
+    grade_value numeric(4,2) NOT NULL,
+    grade_type text COLLATE pg_catalog."default" NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    created_by bigint,
+    updated_at timestamp with time zone,
+    updated_by bigint,
+    is_deleted boolean NOT NULL DEFAULT false,
+    deleted_at timestamp with time zone,
+    deleted_by bigint,
+    CONSTRAINT grades_pkey PRIMARY KEY (id),
+    CONSTRAINT grades_created_by_fkey FOREIGN KEY (created_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT grades_deleted_by_fkey FOREIGN KEY (deleted_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT grades_enrollment_id_fkey FOREIGN KEY (enrollment_id)
+        REFERENCES public.enrollments (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT grades_updated_by_fkey FOREIGN KEY (updated_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.grades
+    OWNER to postgres;
+
+-- Trigger: trg_grades_audit
+
+-- DROP TRIGGER IF EXISTS trg_grades_audit ON public.grades;
+
+CREATE OR REPLACE TRIGGER trg_grades_audit
+    BEFORE UPDATE 
+    ON public.grades
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_audit_fields();
+
+-- Trigger: trg_grades_soft_delete
+
+-- DROP TRIGGER IF EXISTS trg_grades_soft_delete ON public.grades;
+
+CREATE OR REPLACE TRIGGER trg_grades_soft_delete
+    BEFORE DELETE
+    ON public.grades
+    FOR EACH ROW
+    EXECUTE FUNCTION public.soft_delete_row();
+
+-- Table: public.roles
+
+-- DROP TABLE IF EXISTS public.roles;
+
+CREATE TABLE IF NOT EXISTS public.roles
+(
+    id bigint NOT NULL DEFAULT nextval('roles_id_seq'::regclass),
+    name text COLLATE pg_catalog."default" NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    created_by bigint,
+    updated_at timestamp with time zone,
+    updated_by bigint,
+    is_deleted boolean NOT NULL DEFAULT false,
+    deleted_at timestamp with time zone,
+    deleted_by bigint,
+    CONSTRAINT roles_pkey PRIMARY KEY (id),
+    CONSTRAINT roles_name_key UNIQUE (name),
+    CONSTRAINT roles_created_by_fkey FOREIGN KEY (created_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT roles_deleted_by_fkey FOREIGN KEY (deleted_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT roles_updated_by_fkey FOREIGN KEY (updated_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.roles
+    OWNER to postgres;
+
+-- Trigger: trg_roles_audit
+
+-- DROP TRIGGER IF EXISTS trg_roles_audit ON public.roles;
+
+CREATE OR REPLACE TRIGGER trg_roles_audit
+    BEFORE UPDATE 
+    ON public.roles
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_audit_fields();
+
+-- Trigger: trg_roles_soft_delete
+
+-- DROP TRIGGER IF EXISTS trg_roles_soft_delete ON public.roles;
+
+CREATE OR REPLACE TRIGGER trg_roles_soft_delete
+    BEFORE DELETE
+    ON public.roles
+    FOR EACH ROW
+    EXECUTE FUNCTION public.soft_delete_row();
+
+-- Table: public.schedule_entries
+
+-- DROP TABLE IF EXISTS public.schedule_entries;
+
+CREATE TABLE IF NOT EXISTS public.schedule_entries
+(
+    id bigint NOT NULL DEFAULT nextval('schedule_entries_id_seq'::regclass),
+    course_instance_id bigint NOT NULL,
+    classroom_id bigint NOT NULL,
+    starts_at timestamp with time zone NOT NULL,
+    ends_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    created_by bigint,
+    updated_at timestamp with time zone,
+    updated_by bigint,
+    is_deleted boolean NOT NULL DEFAULT false,
+    deleted_at timestamp with time zone,
+    deleted_by bigint,
+    CONSTRAINT schedule_entries_pkey PRIMARY KEY (id),
+    CONSTRAINT schedule_entries_classroom_id_fkey FOREIGN KEY (classroom_id)
+        REFERENCES public.classrooms (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT schedule_entries_course_instance_id_fkey FOREIGN KEY (course_instance_id)
+        REFERENCES public.course_instances (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT schedule_entries_created_by_fkey FOREIGN KEY (created_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT schedule_entries_deleted_by_fkey FOREIGN KEY (deleted_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT schedule_entries_updated_by_fkey FOREIGN KEY (updated_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.schedule_entries
+    OWNER to postgres;
+-- Index: idx_schedule_entries_starts_at
+
+-- DROP INDEX IF EXISTS public.idx_schedule_entries_starts_at;
+
+CREATE INDEX IF NOT EXISTS idx_schedule_entries_starts_at
+    ON public.schedule_entries USING btree
+    (starts_at ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;
+
+-- Trigger: trg_schedule_entries_audit
+
+-- DROP TRIGGER IF EXISTS trg_schedule_entries_audit ON public.schedule_entries;
+
+CREATE OR REPLACE TRIGGER trg_schedule_entries_audit
+    BEFORE UPDATE 
+    ON public.schedule_entries
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_audit_fields();
+
+-- Trigger: trg_schedule_entries_soft_delete
+
+-- DROP TRIGGER IF EXISTS trg_schedule_entries_soft_delete ON public.schedule_entries;
+
+CREATE OR REPLACE TRIGGER trg_schedule_entries_soft_delete
+    BEFORE DELETE
+    ON public.schedule_entries
+    FOR EACH ROW
+    EXECUTE FUNCTION public.soft_delete_row();
+-- Table: public.student_groups
+
+-- DROP TABLE IF EXISTS public.student_groups;
+
+CREATE TABLE IF NOT EXISTS public.student_groups
+(
+    id bigint NOT NULL DEFAULT nextval('student_groups_id_seq'::regclass),
+    study_program_id bigint NOT NULL,
+    code text COLLATE pg_catalog."default" NOT NULL,
+    start_year integer NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    created_by bigint,
+    updated_at timestamp with time zone,
+    updated_by bigint,
+    is_deleted boolean NOT NULL DEFAULT false,
+    deleted_at timestamp with time zone,
+    deleted_by bigint,
+    CONSTRAINT student_groups_pkey PRIMARY KEY (id),
+    CONSTRAINT student_groups_created_by_fkey FOREIGN KEY (created_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT student_groups_deleted_by_fkey FOREIGN KEY (deleted_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT student_groups_study_program_id_fkey FOREIGN KEY (study_program_id)
+        REFERENCES public.study_programs (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT student_groups_updated_by_fkey FOREIGN KEY (updated_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.student_groups
+    OWNER to postgres;
+
+-- Trigger: trg_student_groups_audit
+
+-- DROP TRIGGER IF EXISTS trg_student_groups_audit ON public.student_groups;
+
+CREATE OR REPLACE TRIGGER trg_student_groups_audit
+    BEFORE UPDATE 
+    ON public.student_groups
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_audit_fields();
+
+-- Trigger: trg_student_groups_soft_delete
+
+-- DROP TRIGGER IF EXISTS trg_student_groups_soft_delete ON public.student_groups;
+
+CREATE OR REPLACE TRIGGER trg_student_groups_soft_delete
+    BEFORE DELETE
+    ON public.student_groups
+    FOR EACH ROW
+    EXECUTE FUNCTION public.soft_delete_row();
+
+-- Table: public.students
+
+-- DROP TABLE IF EXISTS public.students;
+
+CREATE TABLE IF NOT EXISTS public.students
+(
+    id bigint NOT NULL DEFAULT nextval('students_id_seq'::regclass),
+    user_id bigint,
+    group_id bigint NOT NULL,
+    student_code text COLLATE pg_catalog."default" NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    created_by bigint,
+    updated_at timestamp with time zone,
+    updated_by bigint,
+    is_deleted boolean NOT NULL DEFAULT false,
+    deleted_at timestamp with time zone,
+    deleted_by bigint,
+    CONSTRAINT students_pkey PRIMARY KEY (id),
+    CONSTRAINT students_student_code_key UNIQUE (student_code),
+    CONSTRAINT students_user_id_key UNIQUE (user_id),
+    CONSTRAINT students_created_by_fkey FOREIGN KEY (created_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT students_deleted_by_fkey FOREIGN KEY (deleted_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT students_group_id_fkey FOREIGN KEY (group_id)
+        REFERENCES public.student_groups (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT students_updated_by_fkey FOREIGN KEY (updated_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT students_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.students
+    OWNER to postgres;
+
+-- Trigger: trg_students_audit
+
+-- DROP TRIGGER IF EXISTS trg_students_audit ON public.students;
+
+CREATE OR REPLACE TRIGGER trg_students_audit
+    BEFORE UPDATE 
+    ON public.students
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_audit_fields();
+
+-- Trigger: trg_students_soft_delete
+
+-- DROP TRIGGER IF EXISTS trg_students_soft_delete ON public.students;
+
+CREATE OR REPLACE TRIGGER trg_students_soft_delete
+    BEFORE DELETE
+    ON public.students
+    FOR EACH ROW
+    EXECUTE FUNCTION public.soft_delete_row();
+
+-- Table: public.study_programs
+
+-- DROP TABLE IF EXISTS public.study_programs;
+
+CREATE TABLE IF NOT EXISTS public.study_programs
+(
+    id bigint NOT NULL DEFAULT nextval('study_programs_id_seq'::regclass),
+    department_id bigint NOT NULL,
+    name text COLLATE pg_catalog."default" NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    created_by bigint,
+    updated_at timestamp with time zone,
+    updated_by bigint,
+    is_deleted boolean NOT NULL DEFAULT false,
+    deleted_at timestamp with time zone,
+    deleted_by bigint,
+    CONSTRAINT study_programs_pkey PRIMARY KEY (id),
+    CONSTRAINT study_programs_created_by_fkey FOREIGN KEY (created_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT study_programs_deleted_by_fkey FOREIGN KEY (deleted_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT study_programs_department_id_fkey FOREIGN KEY (department_id)
+        REFERENCES public.departments (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT study_programs_updated_by_fkey FOREIGN KEY (updated_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.study_programs
+    OWNER to postgres;
+
+-- Trigger: trg_study_programs_audit
+
+-- DROP TRIGGER IF EXISTS trg_study_programs_audit ON public.study_programs;
+
+CREATE OR REPLACE TRIGGER trg_study_programs_audit
+    BEFORE UPDATE 
+    ON public.study_programs
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_audit_fields();
+
+-- Trigger: trg_study_programs_soft_delete
+
+-- DROP TRIGGER IF EXISTS trg_study_programs_soft_delete ON public.study_programs;
+
+CREATE OR REPLACE TRIGGER trg_study_programs_soft_delete
+    BEFORE DELETE
+    ON public.study_programs
+    FOR EACH ROW
+    EXECUTE FUNCTION public.soft_delete_row();
+
+-- Table: public.teachers
+
+-- DROP TABLE IF EXISTS public.teachers;
+
+CREATE TABLE IF NOT EXISTS public.teachers
+(
+    id bigint NOT NULL DEFAULT nextval('teachers_id_seq'::regclass),
+    user_id bigint,
+    department_id bigint NOT NULL,
+    "position" text COLLATE pg_catalog."default",
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    created_by bigint,
+    updated_at timestamp with time zone,
+    updated_by bigint,
+    is_deleted boolean NOT NULL DEFAULT false,
+    deleted_at timestamp with time zone,
+    deleted_by bigint,
+    CONSTRAINT teachers_pkey PRIMARY KEY (id),
+    CONSTRAINT teachers_user_id_key UNIQUE (user_id),
+    CONSTRAINT teachers_created_by_fkey FOREIGN KEY (created_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT teachers_deleted_by_fkey FOREIGN KEY (deleted_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT teachers_department_id_fkey FOREIGN KEY (department_id)
+        REFERENCES public.departments (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT teachers_updated_by_fkey FOREIGN KEY (updated_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT teachers_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.teachers
+    OWNER to postgres;
+
+-- Trigger: trg_teachers_audit
+
+-- DROP TRIGGER IF EXISTS trg_teachers_audit ON public.teachers;
+
+CREATE OR REPLACE TRIGGER trg_teachers_audit
+    BEFORE UPDATE 
+    ON public.teachers
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_audit_fields();
+
+-- Trigger: trg_teachers_soft_delete
+
+-- DROP TRIGGER IF EXISTS trg_teachers_soft_delete ON public.teachers;
+
+CREATE OR REPLACE TRIGGER trg_teachers_soft_delete
+    BEFORE DELETE
+    ON public.teachers
+    FOR EACH ROW
+    EXECUTE FUNCTION public.soft_delete_row();
+
+-- Table: public.user_roles
+
+-- DROP TABLE IF EXISTS public.user_roles;
+
+CREATE TABLE IF NOT EXISTS public.user_roles
+(
+    user_id bigint NOT NULL,
+    role_id bigint NOT NULL,
+    CONSTRAINT user_roles_pkey PRIMARY KEY (user_id, role_id),
+    CONSTRAINT user_roles_role_id_fkey FOREIGN KEY (role_id)
+        REFERENCES public.roles (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.user_roles
+    OWNER to postgres;
+
+-- Table: public.users
+
+-- DROP TABLE IF EXISTS public.users;
+
+CREATE TABLE IF NOT EXISTS public.users
+(
+    id bigint NOT NULL DEFAULT nextval('users_id_seq'::regclass),
+    username text COLLATE pg_catalog."default" NOT NULL,
+    full_name text COLLATE pg_catalog."default" NOT NULL,
+    email text COLLATE pg_catalog."default" NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    created_by bigint,
+    updated_at timestamp with time zone,
+    updated_by bigint,
+    is_deleted boolean NOT NULL DEFAULT false,
+    deleted_at timestamp with time zone,
+    deleted_by bigint,
+    CONSTRAINT users_pkey PRIMARY KEY (id),
+    CONSTRAINT users_email_key UNIQUE (email),
+    CONSTRAINT users_username_key UNIQUE (username),
+    CONSTRAINT users_created_by_fkey FOREIGN KEY (created_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT users_deleted_by_fkey FOREIGN KEY (deleted_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT users_updated_by_fkey FOREIGN KEY (updated_by)
+        REFERENCES public.users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.users
+    OWNER to postgres;
+-- Index: idx_users_full_name
+
+-- DROP INDEX IF EXISTS public.idx_users_full_name;
+
+CREATE INDEX IF NOT EXISTS idx_users_full_name
+    ON public.users USING btree
+    (full_name COLLATE pg_catalog."default" ASC NULLS LAST)
+    WITH (fillfactor=100, deduplicate_items=True)
+    TABLESPACE pg_default;
+
+-- Trigger: trg_users_audit
+
+-- DROP TRIGGER IF EXISTS trg_users_audit ON public.users;
+
+CREATE OR REPLACE TRIGGER trg_users_audit
+    BEFORE UPDATE 
+    ON public.users
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_audit_fields();
+
+-- Trigger: trg_users_soft_delete
+
+-- DROP TRIGGER IF EXISTS trg_users_soft_delete ON public.users;
+
+CREATE OR REPLACE TRIGGER trg_users_soft_delete
+    BEFORE DELETE
+    ON public.users
+    FOR EACH ROW
+    EXECUTE FUNCTION public.soft_delete_row();
+
+-- FUNCTION: public.prevent_duplicate_enrollment()
+
+-- DROP FUNCTION IF EXISTS public.prevent_duplicate_enrollment();
+
+CREATE OR REPLACE FUNCTION public.prevent_duplicate_enrollment()
+    RETURNS trigger
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE NOT LEAKPROOF
+AS $BODY$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM enrollments e
+        WHERE e.student_id = NEW.student_id
+          AND e.course_instance_id = NEW.course_instance_id
+          AND e.is_deleted = false
+    ) THEN
+        RAISE EXCEPTION 'Student already enrolled in this course instance';
+    END IF;
+    RETURN NEW;
+END;
+$BODY$;
+
+ALTER FUNCTION public.prevent_duplicate_enrollment()
+    OWNER TO postgres;
+-- FUNCTION: public.set_audit_fields()
+
+-- DROP FUNCTION IF EXISTS public.set_audit_fields();
+
+CREATE OR REPLACE FUNCTION public.set_audit_fields()
+    RETURNS trigger
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE NOT LEAKPROOF
+AS $BODY$
+BEGIN
+    NEW.updated_at := now();
+    NEW.updated_by := current_setting('app.current_user_id', true)::bigint;
+    RETURN NEW;
+END;
+$BODY$;
+
+ALTER FUNCTION public.set_audit_fields()
+    OWNER TO postgres;
+-- FUNCTION: public.soft_delete_row()
+
+-- DROP FUNCTION IF EXISTS public.soft_delete_row();
+
+CREATE OR REPLACE FUNCTION public.soft_delete_row()
+    RETURNS trigger
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE NOT LEAKPROOF
+AS $BODY$
+DECLARE
+    v_user_id bigint;
+    v_sql text;
+BEGIN
+    -- читаємо поточного користувача; якщо немає – буде NULL
+    v_user_id := nullif(current_setting('app.current_user_id', true), '')::bigint;
+
+    IF v_user_id IS NULL THEN
+        v_sql := format(
+            'UPDATE %I
+             SET is_deleted = true,
+                 deleted_at = now(),
+                 deleted_by = NULL
+             WHERE id = %L',
+            TG_TABLE_NAME,  -- ім'я таблиці
+            OLD.id          -- значення id
+        );
+    ELSE
+        v_sql := format(
+            'UPDATE %I
+             SET is_deleted = true,
+                 deleted_at = now(),
+                 deleted_by = %L
+             WHERE id = %L',
+            TG_TABLE_NAME,
+            v_user_id,
+            OLD.id
+        );
+    END IF;
+
+    EXECUTE v_sql;
+
+    -- скасовуємо фізичний DELETE
+    RETURN NULL;
+END;
+$BODY$;
+
+ALTER FUNCTION public.soft_delete_row()
+    OWNER TO postgres;
+-- View: public.v_courses_active
+
+-- DROP VIEW public.v_courses_active;
+
+CREATE OR REPLACE VIEW public.v_courses_active
+ AS
+ SELECT c.id,
+    c.code,
+    c.name,
+    d.name AS department_name
+   FROM courses c
+     JOIN departments d ON d.id = c.department_id
+  WHERE c.is_deleted = false;
+
+ALTER TABLE public.v_courses_active
+    OWNER TO postgres;
+
+-- View: public.v_student_enrollments
+
+-- DROP VIEW public.v_student_enrollments;
+
+CREATE OR REPLACE VIEW public.v_student_enrollments
+ AS
+ SELECT e.id,
+    s.student_code,
+    u.full_name AS student_name,
+    ci.academic_year,
+    ci.semester,
+    c.name AS course_name,
+    t.id AS teacher_id
+   FROM enrollments e
+     JOIN students s ON s.id = e.student_id
+     JOIN users u ON u.id = s.user_id
+     JOIN course_instances ci ON ci.id = e.course_instance_id
+     JOIN courses c ON c.id = ci.course_id
+     JOIN teachers t ON t.id = ci.teacher_id
+  WHERE e.is_deleted = false AND s.is_deleted = false AND ci.is_deleted = false AND c.is_deleted = false AND t.is_deleted = false;
+
+ALTER TABLE public.v_student_enrollments
+    OWNER TO postgres;
+
+-- View: public.v_students_active
+
+-- DROP VIEW public.v_students_active;
+
+CREATE OR REPLACE VIEW public.v_students_active
+ AS
+ SELECT s.id,
+    s.student_code,
+    u.full_name,
+    g.code AS group_code
+   FROM students s
+     JOIN users u ON u.id = s.user_id
+     JOIN student_groups g ON g.id = s.group_id
+  WHERE s.is_deleted = false;
+
+ALTER TABLE public.v_students_active
+    OWNER TO postgres;
+
+-- View: public.v_teacher_schedule
+
+-- DROP VIEW public.v_teacher_schedule;
+
+CREATE OR REPLACE VIEW public.v_teacher_schedule
+ AS
+ SELECT se.id,
+    u.full_name AS teacher_name,
+    c.name AS course_name,
+    se.starts_at,
+    se.ends_at,
+    cl.building,
+    cl.room_number
+   FROM schedule_entries se
+     JOIN course_instances ci ON ci.id = se.course_instance_id
+     JOIN teachers t ON t.id = ci.teacher_id
+     JOIN users u ON u.id = t.user_id
+     JOIN courses c ON c.id = ci.course_id
+     JOIN classrooms cl ON cl.id = se.classroom_id
+  WHERE se.is_deleted = false AND ci.is_deleted = false AND t.is_deleted = false AND c.is_deleted = false AND cl.is_deleted = false;
+
+ALTER TABLE public.v_teacher_schedule
+    OWNER TO postgres;
+
+-- FUNCTION: public.calculate_gpa(bigint)
+
+-- DROP FUNCTION IF EXISTS public.calculate_gpa(bigint);
+
+CREATE OR REPLACE FUNCTION public.calculate_gpa(
+	p_student_id bigint)
+    RETURNS numeric
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+AS $BODY$
+DECLARE
+    v_gpa numeric(5,2);
+BEGIN
+    SELECT AVG(g.grade_value)
+    INTO v_gpa
+    FROM grades g
+    JOIN enrollments e ON e.id = g.enrollment_id
+    WHERE e.student_id = p_student_id
+      AND g.is_deleted = false
+      AND e.is_deleted = false;
+
+    RETURN v_gpa;
+END;
+$BODY$;
+
+ALTER FUNCTION public.calculate_gpa(bigint)
+    OWNER TO postgres;
+
+-- FUNCTION: public.get_student_courses(bigint)
+
+-- DROP FUNCTION IF EXISTS public.get_student_courses(bigint);
+
+CREATE OR REPLACE FUNCTION public.get_student_courses(
+	p_student_id bigint)
+    RETURNS TABLE(course_instance_id bigint, course_name text, academic_year text, semester integer) 
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+    ROWS 1000
+
+AS $BODY$
+BEGIN
+    RETURN QUERY
+    SELECT ci.id,
+           c.name,
+           ci.academic_year,
+           ci.semester
+    FROM enrollments e
+    JOIN course_instances ci ON ci.id = e.course_instance_id
+    JOIN courses c           ON c.id  = ci.course_id
+    WHERE e.student_id = p_student_id
+      AND e.is_deleted = false
+      AND ci.is_deleted = false
+      AND c.is_deleted = false;
+END;
+$BODY$;
+
+ALTER FUNCTION public.get_student_courses(bigint)
+    OWNER TO postgres;
+
+-- PROCEDURE: public.add_grade(bigint, numeric, text)
+
+-- DROP PROCEDURE IF EXISTS public.add_grade(bigint, numeric, text);
+
+CREATE OR REPLACE PROCEDURE public.add_grade(
+	IN p_enrollment_id bigint,
+	IN p_grade_value numeric,
+	IN p_grade_type text)
+LANGUAGE 'plpgsql'
+AS $BODY$
+BEGIN
+    INSERT INTO grades (enrollment_id, grade_value, grade_type, created_by)
+    VALUES (
+        p_enrollment_id,
+        p_grade_value,
+        p_grade_type,
+        current_setting('app.current_user_id', true)::bigint
+    );
+END;
+$BODY$;
+ALTER PROCEDURE public.add_grade(bigint, numeric, text)
+    OWNER TO postgres;
+-- PROCEDURE: public.delete_student(bigint)
+
+-- DROP PROCEDURE IF EXISTS public.delete_student(bigint);
+
+CREATE OR REPLACE PROCEDURE public.delete_student(
+	IN p_student_id bigint)
+LANGUAGE 'plpgsql'
+AS $BODY$
+BEGIN
+    DELETE FROM students WHERE id = p_student_id;
+END;
+$BODY$;
+ALTER PROCEDURE public.delete_student(bigint)
+    OWNER TO postgres;
+-- PROCEDURE: public.enroll_student(bigint, bigint)
+
+-- DROP PROCEDURE IF EXISTS public.enroll_student(bigint, bigint);
+
+CREATE OR REPLACE PROCEDURE public.enroll_student(
+	IN p_student_id bigint,
+	IN p_course_instance_id bigint)
+LANGUAGE 'plpgsql'
+AS $BODY$
+DECLARE
+    exists_flag boolean;
+BEGIN
+    -- Перевіряємо, чи вже існує такий запис
+    SELECT EXISTS (
+        SELECT 1
+        FROM enrollments
+        WHERE student_id = p_student_id
+          AND course_instance_id = p_course_instance_id
+    ) INTO exists_flag;
+
+    -- Якщо існує — нічого не робимо, просто повертаємось
+    IF exists_flag THEN
+        RETURN;
+    END IF;
+
+    -- Інакше вставляємо
+    INSERT INTO enrollments (student_id, course_instance_id, created_by)
+    VALUES (
+        p_student_id,
+        p_course_instance_id,
+        nullif(current_setting('app.current_user_id', true), '')::bigint
+    );
+END;
+$BODY$;
+ALTER PROCEDURE public.enroll_student(bigint, bigint)
+    OWNER TO postgres;
+-- PROCEDURE: public.set_current_user(bigint)
+
+-- DROP PROCEDURE IF EXISTS public.set_current_user(bigint);
+
+CREATE OR REPLACE PROCEDURE public.set_current_user(
+	IN p_user_id bigint)
+LANGUAGE 'plpgsql'
+AS $BODY$
+BEGIN
+    PERFORM set_config('app.current_user_id', p_user_id::text, true);
+END;
+$BODY$;
+ALTER PROCEDURE public.set_current_user(bigint)
+    OWNER TO postgres;
